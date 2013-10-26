@@ -48,21 +48,11 @@ public class EspetaculosController {
 
 	@Post @Path("/espetaculos")
 	public void adiciona(Espetaculo espetaculo) {
-		// aqui eh onde fazemos as varias validacoes
-		// se nao tiver nome, avisa o usuario
-		// se nao tiver descricao, avisa o usuario
-		if (Strings.isNullOrEmpty(espetaculo.getNome())) {
-			validator.add(new ValidationMessage("Nome do espetáculo nao pode estar em branco", ""));
-		}
-		if (Strings.isNullOrEmpty(espetaculo.getDescricao())) {
-			validator.add(new ValidationMessage("Descricao do espetaculo nao pode estar em branco", ""));
-		}
-		validator.onErrorRedirectTo(this).lista();
-
+		validaCriacaoEspetaculo(espetaculo);
+		
 		agenda.cadastra(espetaculo);
 		result.redirectTo(this).lista();
 	}
-
 
 	@Get @Path("/sessao/{id}")
 	public void sessao(Long id) {
@@ -82,17 +72,7 @@ public class EspetaculosController {
 			return;
 		}
 
-		if (quantidade < 1) {
-			validator.add(new ValidationMessage("Voce deve escolher um lugar ou mais", ""));
-		}
-
-		if (!sessao.podeReservar(quantidade)) {
-			validator.add(new ValidationMessage("Nao existem ingressos dispon√≠veis", ""));
-		}
-
-		// em caso de erro, redireciona para a lista de sessao
-		validator.onErrorRedirectTo(this).sessao(sessao.getId());
-
+		validaQuantidadeReserva(quantidade, sessao);
 		sessao.reserva(quantidade);
 		result.include("message", "Sessao reservada com sucesso");
 
@@ -101,17 +81,13 @@ public class EspetaculosController {
 
 	@Get @Path("/espetaculo/{espetaculoId}/sessoes")
 	public void sessoes(Long espetaculoId) {
-		Espetaculo espetaculo = carregaEspetaculo(espetaculoId);
-
-		result.include("espetaculo", espetaculo);
+		result.include("espetaculo", carregaEspetaculo(espetaculoId));
 	}
-
 
 	@Post @Path("/espetaculo/{espetaculoId}/sessoes")
 	public void cadastraSessoes(Long espetaculoId, LocalDate inicio, LocalDate fim, LocalTime horario, Periodicidade periodicidade) {
 		Espetaculo espetaculo = carregaEspetaculo(espetaculoId);
 
-		// aqui faz a magica!
 		// cria sessoes baseado no periodo de inicio e fim passados pelo usuario
 		List<Sessao> sessoes = espetaculo.criaSessoes(inicio, fim, horario, periodicidade);
 
@@ -123,15 +99,41 @@ public class EspetaculosController {
 
 	private Espetaculo carregaEspetaculo(Long espetaculoId) {
 		Espetaculo espetaculo = agenda.espetaculo(espetaculoId);
+		validaExistenciaEspetaculo(espetaculo);
+		return espetaculo;
+	}
+
+	private void validaExistenciaEspetaculo(Espetaculo espetaculo) {
 		if (espetaculo == null) {
 			validator.add(new ValidationMessage("", ""));
 		}
 		validator.onErrorUse(status()).notFound();
-		return espetaculo;
+	}
+	
+	private void validaQuantidadeReserva(final Integer quantidade, Sessao sessao) {
+		if (quantidade < 1) {
+			validator.add(new ValidationMessage("Voce deve escolher um lugar ou mais", ""));
+		}
+
+		if (!sessao.podeReservar(quantidade)) {
+			validator.add(new ValidationMessage("Nao existem ingressos disponíveis", ""));
+		}
+
+		// em caso de erro, redireciona para a lista de sessao
+		validator.onErrorRedirectTo(this).sessao(sessao.getId());
 	}
 
-	// metodo antigo. aqui soh por backup
-	private Estabelecimento criaEstabelecimento(Long id) {
-		return estabelecimentos.todos().get(0);
+	private void validaCriacaoEspetaculo(Espetaculo espetaculo) {
+		// aqui eh onde fazemos as varias validacoes
+		// se nao tiver nome, avisa o usuario
+		// se nao tiver descricao, avisa o usuario
+		if (Strings.isNullOrEmpty(espetaculo.getNome())) {
+			validator.add(new ValidationMessage("Nome do espetáculo nao pode estar em branco", ""));
+		}
+		if (Strings.isNullOrEmpty(espetaculo.getDescricao())) {
+			validator.add(new ValidationMessage("Descricao do espetaculo nao pode estar em branco", ""));
+		}
+		
+		validator.onErrorRedirectTo(this).lista();
 	}
 }
